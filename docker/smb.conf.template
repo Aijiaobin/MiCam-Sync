@@ -7,12 +7,21 @@
 
    server min protocol = ${SMB_MIN_PROTOCOL}
    server max protocol = ${SMB_MAX_PROTOCOL}
+   client min protocol = ${SMB_CLIENT_MIN_PROTOCOL}
    ntlm auth = yes
    lanman auth = ${SMB_ENABLE_LANMAN}
 
    disable netbios = no
    smb ports = 445 139
    name resolve order = lmhosts host bcast
+   interfaces = ${SMB_INTERFACES}
+   bind interfaces only = ${SMB_BIND_INTERFACES_ONLY}
+   netbios name = ${SMB_NETBIOS_NAME}
+   local master = ${SMB_LOCAL_MASTER}
+   preferred master = ${SMB_PREFERRED_MASTER}
+   os level = ${SMB_OS_LEVEL}
+   domain master = ${SMB_DOMAIN_MASTER}
+   wins support = ${SMB_WINS_SUPPORT}
 
    log file = /var/log/samba/log.%m
    max log size = 1000
