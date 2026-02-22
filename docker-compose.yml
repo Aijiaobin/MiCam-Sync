@@ -1,0 +1,41 @@
+services:
+  micam-sync:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: micam-sync
+    restart: unless-stopped
+    env_file:
+      - .env
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse:/dev/fuse
+    security_opt:
+      - apparmor:unconfined
+      - no-new-privileges:true
+    volumes:
+      - micam_data:/data
+      - micam_webdav:/mnt/webdav:rshared
+    ports:
+      - "8080:8080"
+    networks:
+      camera_net:
+        ipv4_address: 192.168.50.20
+      mgmt_net: {}
+
+volumes:
+  micam_data:
+  micam_webdav:
+
+networks:
+  camera_net:
+    driver: macvlan
+    driver_opts:
+      parent: eth0
+    ipam:
+      config:
+        - subnet: 192.168.50.0/24
+          gateway: 192.168.50.1
+  mgmt_net:
+    driver: bridge

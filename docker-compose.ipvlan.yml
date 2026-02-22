@@ -1,0 +1,19 @@
+services:
+  micam-sync:
+    networks:
+      camera_net:
+        ipv4_address: 192.168.50.20
+      mgmt_net: {}
+
+networks:
+  camera_net:
+    driver: ipvlan
+    driver_opts:
+      ipvlan_mode: l2
+      parent: eth0
+    ipam:
+      config:
+        - subnet: 192.168.50.0/24
+          gateway: 192.168.50.1
+  mgmt_net:
+    driver: bridge

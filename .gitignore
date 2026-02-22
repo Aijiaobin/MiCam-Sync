@@ -1,0 +1,8 @@
+.ace-tool/
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.swp
+data/
+tmp/
