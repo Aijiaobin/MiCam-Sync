@@ -7,6 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     samba \
     samba-common-bin \
+    wsdd \
     supervisor \
     rclone \
     fuse3 \
@@ -37,6 +38,8 @@ EXPOSE 445
 EXPOSE 139
 EXPOSE 137/udp
 EXPOSE 138/udp
+EXPOSE 3702/udp
+EXPOSE 5357
 
 VOLUME ["/data", "/mnt/webdav"]
 
