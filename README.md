@@ -77,6 +77,82 @@ Main env variables (see `.env.example`) / 主要环境变量（见 `.env.example
 - API/UI: `API_HOST`, `API_PORT`, `API_TOKEN`, `API_ALLOW_NO_TOKEN`
 - Runtime: `INBOX_PATH`, `STATE_DB_PATH`, `WEBDAV_MOUNT_PATH`
 
+## Troubleshooting / 常见问题排查
+
+### 1) SMB reachable from LAN client but not from Docker host (macvlan behavior)
+
+If you deploy camera network with `macvlan`, the Linux host usually cannot directly access the container IP on that same macvlan network. This is expected macvlan behavior, not an SMB auth issue.
+
+如果相机网络使用 `macvlan`，Linux 宿主机通常无法直接访问同一 macvlan 网络上的容器 IP。这是 macvlan 的典型行为，不是 SMB 账号权限问题。
+
+Quick checks / 快速检查：
+
+```bash
+# run on another LAN client (not necessarily Docker host)
+smbclient //172.20.0.218/MI_CAMERA -U 'micam' --password='***' -c 'ls'
+```
+
+If you need host↔container direct connectivity, consider an ipvlan profile (`docker-compose.ipvlan.yml`) or add a host macvlan shim.
+
+若需要宿主机与容器直接互通，可使用 ipvlan 配置（`docker-compose.ipvlan.yml`）或在宿主机增加 macvlan shim。
+
+### 2) Xiaomi camera discovery issues on /16 networks
+
+Observed pitfall: with `/16` camera subnet, NetBIOS broadcast scope can differ from some IoT client expectations. Windows may still work (often helped by WSD), while camera validation can fail.
+
+实测坑点：相机网段使用 `/16` 时，NetBIOS 广播范围可能与部分 IoT 固件预期不一致。Windows 可能仍可发现（常受 WSD 帮助），但摄像头验证可能失败。
+
+Recommended baseline / 推荐基线：
+- Prefer `/24` camera subnet unless you explicitly need `/16`.
+- Keep Samba interface binding aligned with real NIC/IP.
+- `wsdd` mainly improves Windows discovery; Xiaomi camera may rely on NetBIOS/SMB path.
+
+- 优先使用 `/24` 相机网段（无特殊需求不建议 `/16`）。
+- Samba 绑定网卡与真实 IP 要一致。
+- `wsdd` 主要改善 Windows 发现，小米相机仍可能依赖 NetBIOS/SMB 路径。
+
+Related env / 相关环境变量（见 `.env.example`）：
+- `SMB_INTERFACES`
+- `SMB_BIND_INTERFACES_ONLY`
+- `SMB_NETBIOS_NAME`
+
+### 3) WebDAV sync failed with `[Errno 5] Input/output error` + `409 Conflict`
+
+This usually means directory creation conflict on WebDAV mount path (FUSE/rclone layer), not SMB permission failure.
+
+这通常是 WebDAV 挂载路径上的目录创建冲突（FUSE/rclone 层），不是 SMB 权限失败。
+
+Typical logs / 典型日志：
+- `Dir.Mkdir failed to create directory: Conflict: 409 Conflict`
+- `OSError: [Errno 5] Input/output error: '/mnt/webdav/...'
+
+Quick recovery steps / 快速恢复步骤：
+
+```bash
+# check target subdir in runtime DB
+docker exec micam-sync python -c 'import sqlite3; c=sqlite3.connect("/data/state/state.db"); print(c.execute("select key,value from settings where key=\"target_subdir\"").fetchall()); c.close()'
+
+# pre-create conflicted directories directly against WebDAV remote
+docker exec micam-sync sh -lc 'rclone mkdir --config /run/rclone/rclone.conf "webdav:/camera/xiaomi_camera_videos/b8888000cbf7/2026021618" -vv'
+
+# release failed retry backoff immediately
+docker exec micam-sync python -c 'import sqlite3; c=sqlite3.connect("/data/state/state.db"); c.execute("update files set next_retry_at=0 where state=\"failed\""); c.commit(); c.close()'
+```
+
+### 4) SMB permission model used by this project
+
+MiCam Sync uses a single SMB upload account by default:
+- share access restricted by `valid users = ${SMB_USER}`
+- files forced to `SMB_USER` via `force user/force group`
+
+MiCam Sync 默认使用单 SMB 上传账号：
+- 共享由 `valid users = ${SMB_USER}` 限定访问
+- 文件通过 `force user/force group` 统一归属 `SMB_USER`
+
+So “camera account works while another account cannot access this share” is expected under default config.
+
+因此在默认配置下，“相机账号可用而另一个账号不能访问该共享”是预期行为。
+
 ## GitHub Actions Docker Publish
 
 Workflow file / 工作流文件：`.github/workflows/docker-publish.yml`
