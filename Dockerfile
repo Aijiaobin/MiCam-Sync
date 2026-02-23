@@ -16,14 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
     && if ! apt-get install -y --no-install-recommends wsdd; then \
          if ! apt-get install -y --no-install-recommends wsdd2; then \
-           /usr/local/bin/python - <<'PY'
-from urllib.request import urlopen
-from pathlib import Path
-url = 'https://raw.githubusercontent.com/christgau/wsdd/master/src/wsdd.py'
-data = urlopen(url, timeout=20).read().decode('utf-8')
-Path('/usr/local/bin/wsdd').write_text(data)
-PY
-           chmod +x /usr/local/bin/wsdd; \
+           /usr/local/bin/python -c "from urllib.request import urlopen; from pathlib import Path; import os; data = urlopen('https://raw.githubusercontent.com/christgau/wsdd/master/src/wsdd.py', timeout=20).read().decode('utf-8'); path = '/usr/local/bin/wsdd'; Path(path).write_text(data); os.chmod(path, 0o755)"; \
          fi; \
        fi \
     && rm -rf /var/lib/apt/lists/*
