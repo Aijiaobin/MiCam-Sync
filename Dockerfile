@@ -7,7 +7,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     samba \
     samba-common-bin \
-    wsdd \
     supervisor \
     rclone \
     fuse3 \
@@ -15,6 +14,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gettext-base \
     ca-certificates \
     tzdata \
+    && if ! apt-get install -y --no-install-recommends wsdd; then \
+         if ! apt-get install -y --no-install-recommends wsdd2; then \
+           /usr/local/bin/python - <<'PY'
+from urllib.request import urlopen
+from pathlib import Path
+url = 'https://raw.githubusercontent.com/christgau/wsdd/master/src/wsdd.py'
+data = urlopen(url, timeout=20).read().decode('utf-8')
+Path('/usr/local/bin/wsdd').write_text(data)
+PY
+           chmod +x /usr/local/bin/wsdd; \
+         fi; \
+       fi \
     && rm -rf /var/lib/apt/lists/*
 
 RUN printf "user_allow_other\n" >> /etc/fuse.conf
@@ -29,8 +40,9 @@ COPY docker/smb.conf.template /etc/samba/smb.conf.template
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY scripts/entrypoint.sh /app/scripts/entrypoint.sh
 COPY scripts/run-webdav-mount.sh /app/scripts/run-webdav-mount.sh
+COPY scripts/run-wsdd.sh /app/scripts/run-wsdd.sh
 
-RUN chmod +x /app/scripts/entrypoint.sh /app/scripts/run-webdav-mount.sh \
+RUN chmod +x /app/scripts/entrypoint.sh /app/scripts/run-webdav-mount.sh /app/scripts/run-wsdd.sh \
     && mkdir -p /data/inbox /data/state /mnt/webdav /run/rclone /var/log/supervisor
 
 EXPOSE 8080
